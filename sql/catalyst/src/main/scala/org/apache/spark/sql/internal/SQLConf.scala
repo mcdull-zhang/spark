@@ -2497,7 +2497,7 @@ object SQLConf {
         "should be stopped, and then trigger parent to consume to avoid OOM.")
       .version("3.4.0")
       .intConf
-      .createWithDefault(1000)
+      .createWithDefault(1)
 
   val CARTESIAN_PRODUCT_EXEC_BUFFER_IN_MEMORY_THRESHOLD =
     buildConf("spark.sql.cartesianProductExec.buffer.in.memory.threshold")

@@ -2226,6 +2226,15 @@ object SQLConf {
       .intConf
       .createWithDefault(SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD.defaultValue.get)
 
+  val SORT_MERGE_JOIN_EXEC_MAX_RECORD_PER_CYCLE =
+    buildConf("spark.sql.sortMergeJoinExec.codegen.maxRecordPerCycle")
+      .internal()
+      .doc("Every time so many records are output, check whether SortMergeJoin " +
+        "should be stopped, and then trigger parent to consume to avoid OOM.")
+      .version("3.2.0")
+      .intConf
+      .createWithDefault(300)
+
   val CARTESIAN_PRODUCT_EXEC_BUFFER_IN_MEMORY_THRESHOLD =
     buildConf("spark.sql.cartesianProductExec.buffer.in.memory.threshold")
       .internal()
@@ -3937,6 +3946,9 @@ class SQLConf extends Serializable with Logging {
 
   def sortMergeJoinExecBufferSpillThreshold: Int =
     getConf(SORT_MERGE_JOIN_EXEC_BUFFER_SPILL_THRESHOLD)
+
+  def sortMergeJoinExecMaxRecordPerCycle: Int =
+    getConf(SORT_MERGE_JOIN_EXEC_MAX_RECORD_PER_CYCLE)
 
   def cartesianProductExecBufferInMemoryThreshold: Int =
     getConf(CARTESIAN_PRODUCT_EXEC_BUFFER_IN_MEMORY_THRESHOLD)

@@ -121,6 +121,7 @@ object OptimizeShuffleWithLocalRead extends AQEShuffleReadRule {
   }
 
   private def createPossibleLocalRead(plan: SparkPlan): SparkPlan = plan match {
+    case l: LeafExecNode => l
     case shuffleJoin: ShuffledJoin => shuffleJoin
     case other =>
       val newChildren = other.requiredChildDistribution.zip(other.children).map {

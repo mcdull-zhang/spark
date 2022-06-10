@@ -115,8 +115,13 @@ object OptimizeShuffleWithLocalRead extends AQEShuffleReadRule {
     plan match {
       case s: SparkPlan if canUseLocalShuffleRead(s) =>
         createLocalRead(s)
+      case s: ShuffleQueryStageExec =>
+        s
+      case s: AQEShuffleReadExec =>
+        s
       case s: SparkPlan =>
-        createPossibleLocalRead(s)
+        val result = createPossibleLocalRead(s)
+        result
     }
   }
 
@@ -128,9 +133,12 @@ object OptimizeShuffleWithLocalRead extends AQEShuffleReadRule {
         case (UnspecifiedDistribution, child: ShuffleQueryStageExec)
           if canUseLocalShuffleRead(child) =>
             createLocalRead(child)
-        case (UnspecifiedDistribution, child: AQEShuffleReadExec)
-          if canUseLocalShuffleRead(child) =>
+        case (UnspecifiedDistribution, child: AQEShuffleReadExec) =>
+          if (canUseLocalShuffleRead(child)) {
             createLocalRead(child)
+          } else {
+            child
+          }
         case (UnspecifiedDistribution, child: SparkPlan) =>
           createPossibleLocalRead(child)
         case (_, child) =>

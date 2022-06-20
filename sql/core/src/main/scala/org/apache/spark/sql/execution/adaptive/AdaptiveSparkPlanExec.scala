@@ -312,6 +312,7 @@ case class AdaptiveSparkPlanExec(
           currentPhysicalPlan = newPhysicalPlan
           currentLogicalPlan = newLogicalPlan
           stagesToReplace = Seq.empty[QueryStageExec]
+          result.newStages.filter(!_.isMaterialized).foreach(_.cancel())
         }
         // Now that some stages have finished, we can try creating new stages.
         result = createQueryStages(currentPhysicalPlan)

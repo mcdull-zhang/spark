@@ -18,7 +18,7 @@
 package org.apache.spark.sql.execution.adaptive
 
 import java.util
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{ConcurrentHashMap, LinkedBlockingQueue}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -237,10 +237,12 @@ case class AdaptiveSparkPlanExec(
       val events = new LinkedBlockingQueue[StageMaterializationEvent]()
       val errors = new mutable.ArrayBuffer[Throwable]()
       var stagesToReplace = Seq.empty[QueryStageExec]
+      val runningQueryStages = new ConcurrentHashMap[Int, QueryStageExec]
       while (!result.allChildStagesMaterialized) {
         currentPhysicalPlan = result.newPlan
         if (result.newStages.nonEmpty) {
           stagesToReplace = result.newStages ++ stagesToReplace
+          result.newStages.foreach(qs => runningQueryStages.put(qs.id, qs))
           executionId.foreach(onUpdatePlan(_, result.newStages.map(_.plan)))
 
           // SPARK-33933: we should submit tasks of broadcast stages first, to avoid waiting
@@ -259,6 +261,7 @@ case class AdaptiveSparkPlanExec(
           reorderedNewStages.foreach { stage =>
             try {
               stage.materialize().onComplete { res =>
+                runningQueryStages.remove(stage.id)
                 if (res.isSuccess) {
                   events.offer(StageSuccess(stage, res.get))
                 } else {
@@ -319,8 +322,16 @@ case class AdaptiveSparkPlanExec(
         }
         // Now that some stages have finished, we can try creating new stages.
         result = createQueryStages(currentPhysicalPlan)
+        val neededQueryStages = result.newPlan.collect {
+          case q: QueryStageExec => q._canonicalized
+        }
+        val toCancelQueryStages = runningQueryStages.values().asScala.filter { queryStage =>
+          !neededQueryStages.contains(queryStage._canonicalized)
+        }
+        toCancelQueryStages.map(_.cancel())
       }
 
+      runningQueryStages.values().asScala.foreach(_.cancel())
       // Run the final plan when there's no more unfinished stages.
       currentPhysicalPlan = applyPhysicalRules(
         optimizeQueryStage(result.newPlan, isFinalStage = true),

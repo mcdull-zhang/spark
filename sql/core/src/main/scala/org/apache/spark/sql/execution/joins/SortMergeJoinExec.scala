@@ -674,6 +674,14 @@ case class SortMergeJoinExec(
           s"SortMergeJoin.doProduce should not take $x as the JoinType")
     }
 
+    val outerJoinHasOutputRow = joinType match {
+      case LeftOuter | RightOuter =>
+        Some(ctx.addMutableState(JAVA_BOOLEAN, "hasOutputRow",
+          v => s"$v = false;", forceInline = true))
+      case _ =>
+        None
+    }
+
     val (findNextJoinRowsFuncName, streamedRow, matches) = genScanner(ctx)
 
     // Create variables for row from both sides.
@@ -790,8 +798,7 @@ case class SortMergeJoinExec(
           eagerCleanup)
       case LeftOuter | RightOuter =>
         codegenOuter(streamedInput, findNextJoinRows, beforeLoop, matchesIter, bufferedRow,
-          condCheck, ctx.addMutableState(JAVA_BOOLEAN, "hasOutputRow",
-            v => s"$v = false;", forceInline = true), outputRow, eagerCleanup)
+          condCheck, outerJoinHasOutputRow.get, outputRow, eagerCleanup)
       case LeftSemi =>
         codegenSemi(findNextJoinRows, beforeLoop, matchesIter, bufferedRow, condCheck,
           ctx.freshName("hasOutputRow"), outputRow, eagerCleanup)

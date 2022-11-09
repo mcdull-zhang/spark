@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.streaming.{InternalOutputModes, StreamingRelationV2}
 import org.apache.spark.sql.errors.{QueryCompilationErrors, QueryExecutionErrors}
+import org.apache.spark.sql.execution.adaptive.LogicalQueryStage
 import org.apache.spark.sql.execution.aggregate.AggUtils
 import org.apache.spark.sql.execution.columnar.{InMemoryRelation, InMemoryTableScanExec}
 import org.apache.spark.sql.execution.command._
@@ -843,8 +844,9 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         execution.ExpandExec(e.projections, e.output, planLater(child)) :: Nil
       case logical.Sample(lb, ub, withReplacement, seed, child) =>
         execution.SampleExec(lb, ub, withReplacement, seed, planLater(child)) :: Nil
-      case logical.LocalRelation(output, data, _) =>
-        LocalTableScanExec(output, data) :: Nil
+      case logical.LocalRelation(output, data, _, innerPlan) =>
+        val innerQueryStage = innerPlan.map(_.asInstanceOf[LogicalQueryStage].physicalPlan)
+        LocalTableScanExec(output, data, innerQueryStage) :: Nil
       case CommandResult(output, _, plan, data) => CommandResultExec(output, plan, data) :: Nil
       // We should match the combination of limit and offset first, to get the optimal physical
       // plan, instead of planning limit and offset separately.

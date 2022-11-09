@@ -20,6 +20,7 @@ package org.apache.spark.sql.execution
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection}
+import org.apache.spark.sql.execution.adaptive.QueryStageExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 
 
@@ -31,7 +32,8 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
  */
 case class LocalTableScanExec(
     output: Seq[Attribute],
-    @transient rows: Seq[InternalRow]) extends LeafExecNode with InputRDDCodegen {
+    @transient rows: Seq[InternalRow],
+    @transient innerPlan: Option[SparkPlan] = None) extends LeafExecNode with InputRDDCodegen {
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))

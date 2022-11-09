@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution
 
 import org.apache.spark.annotation.DeveloperApi
+import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
@@ -58,6 +59,7 @@ private[execution] object SparkPlanInfo {
       case a: AdaptiveSparkPlanExec => a.executedPlan :: Nil
       case stage: QueryStageExec => stage.plan :: Nil
       case inMemTab: InMemoryTableScanExec => inMemTab.relation.cachedPlan :: Nil
+      case LocalTableScanExec(_, _, innerPlan) if innerPlan.isDefined => innerPlan.get :: Nil
       case _ => plan.children ++ plan.subqueries
     }
     val metrics = plan.metrics.toSeq.map { case (key, metric) =>

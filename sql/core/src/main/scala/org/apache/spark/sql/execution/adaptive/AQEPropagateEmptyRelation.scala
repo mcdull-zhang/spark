@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.adaptive
 
 import org.apache.spark.sql.catalyst.optimizer.PropagateEmptyRelationBase
 import org.apache.spark.sql.catalyst.planning.ExtractSingleColumnNullAwareAntiJoin
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{LocalRelation, LogicalPlan}
 import org.apache.spark.sql.catalyst.trees.TreePattern.{LOCAL_RELATION, LOGICAL_QUERY_STAGE, TRUE_OR_FALSE_LITERAL}
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.exchange.{REPARTITION_BY_COL, REPARTITION_BY_NUM, ShuffleExchangeLike}
@@ -33,6 +33,15 @@ import org.apache.spark.sql.execution.joins.HashedRelationWithAllNullKeys
  *    empty [[LocalRelation]].
  */
 object AQEPropagateEmptyRelation extends PropagateEmptyRelationBase {
+
+  override protected def empty(plan: LogicalPlan): LocalRelation = plan match {
+    case queryStage: LogicalQueryStage =>
+      LocalRelation(plan.output, data = Seq.empty, isStreaming = plan.isStreaming,
+        innerPlan = Some(queryStage))
+    case _ =>
+      LocalRelation(plan.output, data = Seq.empty, isStreaming = plan.isStreaming)
+  }
+
   override protected def isEmpty(plan: LogicalPlan): Boolean =
     super.isEmpty(plan) || (!isRootRepartition(plan) && getEstimatedRowCount(plan).contains(0))
 
